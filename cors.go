@@ -145,32 +145,29 @@ func Cors(config Config) baa.HandlerFunc {
 			if !preflight {
 				valid = handleRequest(c, config)
 			}
+			//If it reaches here, it was not a valid request
+			if !valid {
+				c.Break()
+			}
 
-			if valid {
+			if config.Credentials {
+				c.Resp.Header().Set(AllowCredentialsKey, config.credentials)
+				// Allowed origins cannot be the string "*" cannot be used for a resource that supports credentials.
+				c.Resp.Header().Set(AllowOriginKey, currentOrigin)
+			} else if forceOriginMatch {
+				c.Resp.Header().Set(AllowOriginKey, "*")
+			} else {
+				c.Resp.Header().Set(AllowOriginKey, currentOrigin)
+			}
 
-				if config.Credentials {
-					c.Resp.Header().Set(AllowCredentialsKey, config.credentials)
-					// Allowed origins cannot be the string "*" cannot be used for a resource that supports credentials.
-					c.Resp.Header().Set(AllowOriginKey, currentOrigin)
-				} else if forceOriginMatch {
-					c.Resp.Header().Set(AllowOriginKey, "*")
-				} else {
-					c.Resp.Header().Set(AllowOriginKey, currentOrigin)
-				}
-
-				//If this is a preflight request, we are finished, quit.
-				//Otherwise this is a normal request and operations should proceed at normal
-				if preflight {
-					c.Break()
-				} else {
-					c.Next()
-				}
-				return
+			//If this is a preflight request, we are finished, quit.
+			//Otherwise this is a normal request and operations should proceed at normal
+			if preflight {
+				c.Break()
+			} else {
+				c.Next()
 			}
 		}
-
-		//If it reaches here, it was not a valid request
-		c.Break()
 	}
 }
 
