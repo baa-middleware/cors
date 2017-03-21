@@ -120,6 +120,7 @@ func Cors(config Config) baa.HandlerFunc {
 
 		// CORS headers are added whenever the browser request includes an "Origin" header
 		// However, if no Origin is supplied, they should never be added.
+		// As it normal request
 		if currentOrigin == "" {
 			c.Next()
 			return
@@ -130,44 +131,47 @@ func Cors(config Config) baa.HandlerFunc {
 			originMatch = matchOrigin(currentOrigin, config)
 		}
 
-		if forceOriginMatch || originMatch {
-			valid := false
-			preflight := false
+		//If not * or origin cannot macth , so cors is not alowed
+		if ok := forceOriginMatch || originMatch; !ok {
+			c.Break()
+			return
+		}
 
-			if c.Req.Method == optionsMethod {
-				requestMethod := c.Req.Header.Get(RequestMethodKey)
-				if requestMethod != "" {
-					preflight = true
-					valid = handlePreflight(c, config, requestMethod)
-				}
-			}
+		valid := false
+		preflight := false
 
-			if !preflight {
-				valid = handleRequest(c, config)
-			}
-			//If it reaches here, it was not a valid request
-			if !valid {
-				c.Break()
-			}
-
-			if config.Credentials {
-				c.Resp.Header().Set(AllowCredentialsKey, config.credentials)
-				// Allowed origins cannot be the string "*" cannot be used for a resource that supports credentials.
-				c.Resp.Header().Set(AllowOriginKey, currentOrigin)
-			} else if forceOriginMatch {
-				c.Resp.Header().Set(AllowOriginKey, "*")
-			} else {
-				c.Resp.Header().Set(AllowOriginKey, currentOrigin)
-			}
-
-			//If this is a preflight request, we are finished, quit.
-			//Otherwise this is a normal request and operations should proceed at normal
-			if preflight {
-				c.Break()
-			} else {
-				c.Next()
+		if c.Req.Method == optionsMethod {
+			requestMethod := c.Req.Header.Get(RequestMethodKey)
+			if requestMethod != "" {
+				preflight = true
+				valid = handlePreflight(c, config, requestMethod)
 			}
 		}
+
+		//If this is a preflight request, we are finished, quit.
+		//Otherwise this is a normal request and operations should proceed at normal
+		if preflight {
+			c.Break()
+			return
+		}
+		valid = handleRequest(c, config)
+		//If it reaches here, it was not a valid request
+		if !valid {
+			c.Break()
+			return
+		}
+
+		if config.Credentials {
+			c.Resp.Header().Set(AllowCredentialsKey, config.credentials)
+			// Allowed origins cannot be the string "*" cannot be used for a resource that supports credentials.
+			c.Resp.Header().Set(AllowOriginKey, currentOrigin)
+		} else if forceOriginMatch {
+			c.Resp.Header().Set(AllowOriginKey, "*")
+		} else {
+			c.Resp.Header().Set(AllowOriginKey, currentOrigin)
+		}
+
+		c.Next()
 	}
 }
 
