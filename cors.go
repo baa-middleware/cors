@@ -148,13 +148,9 @@ func Cors(config Config) baa.HandlerFunc {
 			}
 		}
 
-		//If this is a preflight request, we are finished, quit.
-		//Otherwise this is a normal request and operations should proceed at normal
-		if preflight {
-			c.Break()
-			return
+		if !preflight {
+			valid = handleRequest(c, config)
 		}
-		valid = handleRequest(c, config)
 		//If it reaches here, it was not a valid request
 		if !valid {
 			c.Break()
@@ -169,6 +165,13 @@ func Cors(config Config) baa.HandlerFunc {
 			c.Resp.Header().Set(AllowOriginKey, "*")
 		} else {
 			c.Resp.Header().Set(AllowOriginKey, currentOrigin)
+		}
+
+		//If this is  a preflight request, we are finished, quit.
+		//Otherwise this is a normal request and operations should proceed at normal
+		if preflight {
+			c.Break()
+			return
 		}
 
 		c.Next()
