@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/baa.v1"
+	"github.com/go-baa/baa"
 )
 
 const (
